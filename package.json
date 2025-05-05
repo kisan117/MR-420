@@ -7,5 +7,6 @@
   },
   "dependencies": {
     "@whiskeysockets/baileys": "^3.0.0"
-  }
+  },
+  "type": "module"
 }
