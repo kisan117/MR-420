@@ -6,7 +6,7 @@
     "start": "node index.js"
   },
   "dependencies": {
-    "@whiskeysockets/baileys": "^3.0.0"
+    "@whiskeysockets/baileys": "^2.5.0"
   },
   "type": "module"
 }
