@@ -1,1 +1,11 @@
-npm init -y
+{
+  "name": "MR-420",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "@whiskeysockets/baileys": "^3.0.0"
+  }
+}
