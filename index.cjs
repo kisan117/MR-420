@@ -1,4 +1,4 @@
-const { makeWASocket, useSingleFileAuthState } = require('baileys');
+const { makeWASocket, useMultiFileAuthState } = require('baileys'); // Corrected import
 const readline = require('readline-sync');
 const fs = require('fs');
 
@@ -7,7 +7,7 @@ const userNumber = readline.question('अपना WhatsApp नंबर डा�
 console.log(`आपका नंबर: ${userNumber}`);
 
 // 2. Pairing Code दिखाएँ और नोटिफिकेशन दें
-const { state, saveState } = useSingleFileAuthState('./auth.json');
+const { state, saveState } = useMultiFileAuthState('./auth'); // Updated auth state path
 const sock = makeWASocket({ auth: state, printQRInTerminal: false });
 
 async function startBot() {
