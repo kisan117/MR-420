@@ -7,7 +7,7 @@ const userNumber = readline.question('अपना WhatsApp नंबर डा�
 console.log(`आपका नंबर: ${userNumber}`);
 
 // 2. Pairing Code दिखाएँ और नोटिफिकेशन दें
-const { state, saveState } = useSingleFileAuthState('./auth.json');
+const { state, saveState } = useSingleFileAuthState('./auth_info.json'); // Corrected the file name to avoid confusion
 const sock = makeWASocket({ auth: state, printQRInTerminal: false });
 
 async function startBot() {
