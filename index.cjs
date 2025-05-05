@@ -1,53 +1,42 @@
-const { makeWASocket, useMultiFileAuthState } = require('baileys'); // Corrected import
+const { default: makeWASocket, useMultiFileAuthState } = require('baileys');
 const readline = require('readline-sync');
 const fs = require('fs');
 
-// 1. User से उसका नंबर लें
-const userNumber = readline.question('अपना WhatsApp नंबर डालें (country code सहित, जैसे 919876543210): ');
-console.log(`आपका नंबर: ${userNumber}`);
-
-// 2. Pairing Code दिखाएँ और नोटिफिकेशन दें
-const { state, saveState } = useMultiFileAuthState('./auth'); // Updated auth state path
-const sock = makeWASocket({ auth: state, printQRInTerminal: false });
-
 async function startBot() {
-    if (!state.creds.registered) {
-        const code = await sock.requestPairingCode(userNumber);
-        console.log('\n🔔 अपने WhatsApp में जाएँ:');
-        console.log('Settings > Linked Devices > Link a device > Link with phone number');
-        console.log(`\n👉 वहाँ यह कोड डालें: ${code}\n`);
-        console.log('⏳ पेयरिंग पूरी होने तक इंतजार करें...\n');
-    }
+  const { state, saveCreds } = await useMultiFileAuthState('./auth');
 
-    // 3. पेयरिंग के बाद Target details पूछें
-    sock.ev.on('connection.update', async (update) => {
-        if (update.connection === 'open') {
-            console.log('✅ WhatsApp से कनेक्ट हो गया!\n');
+  const sock = makeWASocket({
+    auth: state,
+    printQRInTerminal: false
+  });
 
-            // Target details लें
-            const targetNumber = readline.question('Target नंबर (country code सहित, जैसे 919xxxxxxxxx): ');
-            const targetName = readline.question('Target नाम: ');
-            const speed = parseInt(readline.question('Speed (सेकंड में डिले): ')) * 1000;
-            const msgFile = readline.question('Message file name (जैसे message.txt): ');
+  const userNumber = readline.question('अपना WhatsApp नंबर डालें (जैसे 919876543210): ');
+  console.log(`आपका नंबर: ${userNumber}`);
 
-            // मैसेज फाइल पढ़ें
-            let messageText = '';
-            try {
-                messageText = fs.readFileSync(msgFile, 'utf-8');
-            } catch (e) {
-                console.log('❌ मैसेज फाइल नहीं मिली!');
-                process.exit(1);
-            }
+  if (!state.creds.registered) {
+    const code = await sock.requestPairingCode(userNumber);
+    console.log('\n🔗 अपने WhatsApp में जाएँ: Settings > Linked Devices > Link with phone number');
+    console.log(`\n👉 Pairing Code: ${code}`);
+    console.log('⏳ पेयरिंग होने तक इंतज़ार करें...\n');
+  }
 
-            // Target को मैसेज भेजें
-            await new Promise(resolve => setTimeout(resolve, speed));
-            await sock.sendMessage(`${targetNumber}@s.whatsapp.net`, {
-                text: `नमस्ते ${targetName},\n\n${messageText}`
-            });
-            console.log('✅ मैसेज भेज दिया गया!');
-            process.exit(0);
-        }
-    });
-}
+  sock.ev.on('connection.update', async (update) => {
+    if (update.connection === 'open') {
+      console.log('✅ कनेक्शन हो गया!');
 
-startBot();
+      const targetNumber = readline.question('Target नंबर: ');
+      const targetName = readline.question('Target नाम: ');
+      const delay = parseInt(readline.question('Speed (सेकंड): ')) * 1000;
+      const msgFile = readline.question('Message file (जैसे msg.txt): ');
+
+      let message = '';
+      try {
+        message = fs.readFileSync(msgFile, 'utf-8');
+      } catch {
+        console.log('❌ मैसेज फाइल नहीं मिली!');
+        process.exit(1);
+      }
+
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      await sock.sendMessage(`${targetNumber
