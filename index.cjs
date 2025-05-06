@@ -1,4 +1,4 @@
-const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } = require('@whiskeysockets/baileys');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } = require('baileys');
 const fs = require('fs');
 const readline = require('readline');
 const chalk = require('chalk');
