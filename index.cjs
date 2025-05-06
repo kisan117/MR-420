@@ -1,6 +1,6 @@
-const { makeWASocket, useMultiFileAuthState, fetchLatestBaileysVersion } = require('@whiskeysockets/baileys');
-const readline = require('readline');
+const { default: makeWASocket, useMultiFileAuthState, DisconnectReason, delay } = require('@whiskeysockets/baileys');
 const fs = require('fs');
+const readline = require('readline');
 const chalk = require('chalk');
 
 const rl = readline.createInterface({
@@ -8,60 +8,92 @@ const rl = readline.createInterface({
   output: process.stdout
 });
 
-async function ask(question) {
-  return new Promise(resolve => rl.question(question, ans => resolve(ans)));
+function askQuestion(query) {
+  return new Promise(resolve => rl.question(query, resolve));
 }
 
-async function main() {
-  const userNumber = await ask(chalk.cyan("Enter your WhatsApp number (with country code): "));
-  const { state, saveCreds } = await useMultiFileAuthState('auth_info');
-  const { version } = await fetchLatestBaileysVersion();
+function printBanner() {
+  console.clear();
+  console.log(chalk.greenBright(`
+╔════════════════════════════════════════╗
+║     WhatsApp Message Sender Tool      ║
+╚════════════════════════════════════════╝
+${chalk.cyanBright('Author')}   : 🔥 POWER STAR VEER 🔥
+${chalk.yellowBright('GitHub')}   : https://github.com/sameerkhan0
+${chalk.magentaBright('Version')}  : Termux Auto Sender v2
+  `));
+}
+
+async function startSendingMessages(socket, number, messages, delaySec, prefix) {
+  while (true) {
+    for (const message of messages) {
+      try {
+        const time = new Date().toLocaleTimeString();
+        const fullMessage = `${prefix} ${message}`;
+        await socket.sendMessage(`${number}@c.us`, { text: fullMessage });
+
+        console.log(chalk.cyan(`\n[Target Number] => ${number}`));
+        console.log(chalk.green(`[Time] => ${time}`));
+        console.log(chalk.yellow(`[Message] => ${fullMessage}`));
+        console.log(chalk.magenta(`[Status] => Sent successfully`));
+
+        await delay(delaySec * 1000);
+      } catch (err) {
+        console.log(chalk.red(`[Error] => ${err.message}. Retrying...`));
+        await delay(5000);
+      }
+    }
+  }
+}
+
+async function connectWhatsApp() {
+  const { state, saveCreds } = await useMultiFileAuthState('./auth_info');
 
   const sock = makeWASocket({
-    version,
+    auth: state,
     printQRInTerminal: true,
-    auth: state
+    logger: { level: 'silent' }
   });
 
-  sock.ev.on('creds.update', saveCreds);
-
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect } = update;
-
+  sock.ev.on('connection.update', async ({ connection, lastDisconnect }) => {
     if (connection === 'open') {
-      console.log(chalk.green('\nConnected successfully!'));
+      printBanner();
+      console.log(chalk.green('✅ WhatsApp Connected Successfully!\n'));
 
-      await sock.sendMessage(userNumber + "@s.whatsapp.net", { text: "✅ Your WhatsApp paired successfully with MR DEVIL TOOL." });
+      const target = await askQuestion(chalk.greenBright('[>] Enter Target Number: '));
+      const filePath = await askQuestion(chalk.cyan('[>] Enter Message File Path: '));
 
-      const targetNumber = await ask(chalk.cyan("Enter target number (with country code): "));
-      const targetName = await ask(chalk.cyan("Enter target name: "));
-      const speed = parseInt(await ask(chalk.cyan("Enter speed in ms between messages: ")));
-      const msgFilePath = await ask(chalk.cyan("Enter message file path (e.g., messages.txt): "));
-
-      if (!fs.existsSync(msgFilePath)) {
-        console.log(chalk.red("Message file not found!"));
+      let messages = [];
+      try {
+        const fileContent = fs.readFileSync(filePath, 'utf-8');
+        messages = fileContent.split('\n').filter(Boolean);
+      } catch {
+        console.log(chalk.red('❌ Message file not found.'));
         process.exit(1);
       }
 
-      const messages = fs.readFileSync(msgFilePath, 'utf-8').split('\n').filter(msg => msg.trim() !== '');
-      console.log(chalk.yellow(`\nStarting message sending to ${targetName} (${targetNumber})...\n`));
+      const prefix = await askQuestion(chalk.yellow('[>] Enter Message Prefix (e.g., Name): '));
+      const delayTime = parseInt(await askQuestion(chalk.magenta('[>] Enter Delay (seconds): ')));
 
-      let index = 0;
-      while (true) {
-        const msg = messages[index % messages.length];
-        await sock.sendMessage(targetNumber + "@s.whatsapp.net", { text: msg });
-        console.log(chalk.green(`[SENT] ${msg}`));
-        index++;
-        await new Promise(res => setTimeout(res, speed));
-      }
+      console.log(chalk.blue('\nStarting to send messages...\n'));
+      await startSendingMessages(sock, target, messages, delayTime, prefix);
     }
 
-    if (connection === 'close') {
-      const shouldReconnect = lastDisconnect?.error?.output?.statusCode !== 401;
-      console.log(chalk.red("Connection closed. Reconnecting..."), shouldReconnect);
-      if (shouldReconnect) main();
+    if (connection === 'close' && lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut) {
+      console.log(chalk.red('\n❌ Disconnected. Trying to reconnect...'));
+      setTimeout(connectWhatsApp, 5000);
     }
   });
+
+  sock.ev.on('creds.update', saveCreds);
 }
 
-main();
+process.on('uncaughtException', (err) => {
+  const msg = String(err);
+  if (!msg.includes("Socket connection timeout") && !msg.includes("rate-overlimit")) {
+    console.error('Uncaught Exception:', err);
+  }
+});
+
+printBanner();
+connectWhatsApp();
